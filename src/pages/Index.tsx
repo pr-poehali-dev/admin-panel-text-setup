@@ -153,7 +153,7 @@ export default function Index() {
         <div className="mb-8 animate-fade-in">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Этапы сотрудничества</h1>
           <p className="text-muted-foreground">
-            Раскройте этап, чтобы посмотреть шаги. Наведите на шаг и нажмите «Изменить», чтобы отредактировать текст.
+            Раскройте этап, чтобы посмотреть шаги. Нажмите на шаг, чтобы отредактировать текст.
           </p>
         </div>
 
@@ -193,12 +193,16 @@ export default function Index() {
                       {stage.steps.map((step, si) => {
                         const isEditing = editing?.stepId === step.id;
                         return (
-                          <li key={step.id} className="group flex items-center gap-3 px-5 py-3">
+                          <li
+                            key={step.id}
+                            className={`group flex items-center gap-3 px-5 py-3 ${!isEditing ? 'cursor-pointer hover:bg-brand-light/50 transition-colors' : ''}`}
+                            onClick={() => !isEditing && startEdit(stage.id, step)}
+                          >
                             <span className="h-6 w-6 shrink-0 rounded-full border border-border bg-white text-xs flex items-center justify-center text-muted-foreground tabular-nums">
                               {si + 1}
                             </span>
                             {isEditing ? (
-                              <div className="flex-1 flex items-center gap-2">
+                              <div className="flex-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   autoFocus
                                   value={draft}
@@ -226,13 +230,7 @@ export default function Index() {
                             ) : (
                               <>
                                 <span className="flex-1 text-sm">{step.text}</span>
-                                <button
-                                  onClick={() => startEdit(stage.id, step)}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-8 px-3 rounded-md text-brand-dark hover:bg-brand-light text-sm font-medium flex items-center gap-1.5"
-                                >
-                                  <Icon name="Pencil" size={14} />
-                                  Изменить
-                                </button>
+                                <Icon name="Pencil" size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                               </>
                             )}
                           </li>
