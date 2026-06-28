@@ -1,0 +1,11 @@
+{
+  "tests": [
+    {
+      "name": "GET documents",
+      "method": "GET",
+      "path": "/?step_id=s1-1",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

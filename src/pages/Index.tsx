@@ -1,5 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
+
+const UPLOAD_URL = 'https://functions.poehali.dev/0d13df32-74eb-4cdf-8844-5e82da6b0e28';
+const GET_DOCS_URL = 'https://functions.poehali.dev/215039c3-ec61-479e-8c56-986f1625b805';
+
+const STEP_DOCS: Record<string, string[]> = {
+  's1-1': [
+    'Агентский договор (АгД)',
+    'Договор коммерческой концессии (ДКК)',
+    'Договор поставки',
+    'Соглашение о намерении (СоН)',
+    'Соглашение о конфиденциальной информации (NDA)',
+  ],
+};
+
+interface DocFile {
+  id: number;
+  step_id: string;
+  doc_label: string;
+  file_name: string;
+  file_url: string;
+}
 
 interface Step {
   id: string;
@@ -126,8 +147,47 @@ export default function Index() {
   const [draft, setDraft] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [docs, setDocs] = useState<DocFile[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeDocLabel, setActiveDocLabel] = useState<string | null>(null);
 
   const totalSteps = stages.reduce((sum, s) => sum + s.steps.length, 0);
+
+  const loadDocs = async (stepId: string) => {
+    const res = await fetch(`${GET_DOCS_URL}?step_id=${stepId}`);
+    const data = await res.json();
+    setDocs(data);
+  };
+
+  const handleFileUpload = async (file: File, docLabel: string, stepId: string) => {
+    setUploading(docLabel);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      await fetch(UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step_id: stepId, doc_label: docLabel, file_name: file.name, file_data: base64 }),
+      });
+      await loadDocs(stepId);
+      setUploading(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeleteDoc = async (docId: number, stepId: string) => {
+    await fetch(GET_DOCS_URL, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: docId }),
+    });
+    await loadDocs(stepId);
+  };
+
+  useEffect(() => {
+    if (modal) loadDocs(modal.stepId);
+  }, [modal]);
 
   const startEdit = (stageId: string, step: Step, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -304,27 +364,80 @@ export default function Index() {
           onClick={() => setModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-fade-in"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden animate-fade-in max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 pt-6 pb-4 border-b border-border">
+            <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">
               <div className="text-xs text-muted-foreground mb-1">{modalStage.title}</div>
               <h2 className="text-lg font-semibold leading-snug">{modalStep.text}</h2>
             </div>
-            <div className="px-6 py-5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">
-                {stepLabels[modalStep.id] ?? 'Описание / инструкция'}
-              </label>
-              <textarea
-                autoFocus
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                placeholder="Введите описание, инструкцию или заметку к этому шагу..."
-                rows={6}
-                className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none transition-all"
-              />
+
+            <div className="overflow-y-auto flex-1">
+              <div className="px-6 py-5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">
+                  {stepLabels[modalStep.id] ?? 'Описание / инструкция'}
+                </label>
+                <textarea
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  placeholder="Введите описание, инструкцию или заметку к этому шагу..."
+                  rows={4}
+                  className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none transition-all"
+                />
+              </div>
+
+              {STEP_DOCS[modalStep.id] && (
+                <div className="px-6 pb-5">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Документы</div>
+                  <div className="space-y-2">
+                    {STEP_DOCS[modalStep.id].map((label) => {
+                      const uploaded = docs.filter(d => d.doc_label === label);
+                      const isUploading = uploading === label;
+                      return (
+                        <div key={label} className="rounded-xl border border-border bg-secondary/30 px-4 py-3">
+                          <div className="text-sm font-medium mb-2">{label}</div>
+                          {uploaded.length > 0 && (
+                            <div className="space-y-1 mb-2">
+                              {uploaded.map(doc => (
+                                <div key={doc.id} className="flex items-center gap-2 text-xs">
+                                  <Icon name="FileText" size={13} className="text-brand shrink-0" />
+                                  <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-brand hover:underline truncate flex-1">{doc.file_name}</a>
+                                  <button onClick={() => handleDeleteDoc(doc.id, modalStep.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                    <Icon name="Trash2" size={13} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            disabled={isUploading}
+                            onClick={() => { setActiveDocLabel(label); fileInputRef.current?.click(); }}
+                            className="flex items-center gap-1.5 text-xs text-brand hover:text-brand-dark font-medium disabled:opacity-50 transition-colors"
+                          >
+                            <Icon name={isUploading ? 'Loader2' : 'Upload'} size={13} className={isUploading ? 'animate-spin' : ''} />
+                            {isUploading ? 'Загружается...' : 'Загрузить файл'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && activeDocLabel && modal) {
+                        handleFileUpload(file, activeDocLabel, modal.stepId);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="px-6 pb-6 flex items-center justify-end gap-2">
+
+            <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-2 shrink-0">
               <button
                 onClick={() => setModal(null)}
                 className="h-9 px-4 rounded-lg text-sm text-muted-foreground hover:bg-secondary transition-colors"
