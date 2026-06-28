@@ -5,6 +5,7 @@ interface Step {
   id: string;
   text: string;
   note: string;
+  noteLabel?: string;
 }
 
 interface Stage {
@@ -15,6 +16,10 @@ interface Stage {
 
 const makeSteps = (texts: string[], prefix: string): Step[] =>
   texts.map((text, i) => ({ id: `${prefix}-${i}`, text, note: '' }));
+
+const stepLabels: Record<string, string> = {
+  's1-0': 'Звонок менеджера',
+};
 
 const initialStages: Stage[] = [
   {
@@ -302,7 +307,7 @@ export default function Index() {
             </div>
             <div className="px-6 py-5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">
-                Описание / инструкция
+                {stepLabels[modalStep.id] ?? 'Описание / инструкция'}
               </label>
               <textarea
                 autoFocus
