@@ -77,7 +77,6 @@ const initialStages: Stage[] = [
     title: 'Защита на ИК',
     steps: makeSteps([
       'Данные для ИК',
-      'Подготовка к аудиту',
       'Проведение ИК',
     ], 's3'),
   },
