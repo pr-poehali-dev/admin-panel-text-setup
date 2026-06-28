@@ -4,6 +4,7 @@ import Icon from '@/components/ui/icon';
 interface Step {
   id: string;
   text: string;
+  note: string;
 }
 
 interface Stage {
@@ -12,11 +13,14 @@ interface Stage {
   steps: Step[];
 }
 
+const makeSteps = (texts: string[], prefix: string): Step[] =>
+  texts.map((text, i) => ({ id: `${prefix}-${i}`, text, note: '' }));
+
 const initialStages: Stage[] = [
   {
     id: 's1',
     title: 'Определение условий сотрудничества',
-    steps: [
+    steps: makeSteps([
       'Дождитесь звонок менеджера',
       'Ознакомьтесь с типовыми документами',
       'Предоставьте информацию о локации',
@@ -25,30 +29,30 @@ const initialStages: Stage[] = [
       'Подготовка СоН',
       'Заполните анкету',
       'Внесите обеспечительный платеж',
-    ].map((text, i) => ({ id: `s1-${i}`, text })),
+    ], 's1'),
   },
   {
     id: 's2',
     title: 'Подбор локации',
-    steps: [
+    steps: makeSteps([
       'Подбор локаций',
       'Посетите предложенные объекты',
       'Предоставьте предварительные договоренности по аренде',
-    ].map((text, i) => ({ id: `s2-${i}`, text })),
+    ], 's2'),
   },
   {
     id: 's3',
     title: 'Защита на ИК',
-    steps: [
+    steps: makeSteps([
       'Предоставьте данные для ИК',
       'Подготовка к аудиту',
       'Проведение ИК',
-    ].map((text, i) => ({ id: `s3-${i}`, text })),
+    ], 's3'),
   },
   {
     id: 's4',
     title: 'Создание ЮЛ и подписание документов',
-    steps: [
+    steps: makeSteps([
       'Создайте Юр. лицо',
       'Получите ЭЦП',
       'На проверке',
@@ -57,12 +61,12 @@ const initialStages: Stage[] = [
       'Создайте обособленное подразделение',
       'Заключите договор аренды',
       'Согласуйте планировки с расстановкой оборудования',
-    ].map((text, i) => ({ id: `s4-${i}`, text })),
+    ], 's4'),
   },
   {
     id: 's5',
     title: 'Подготовка к проведению РСР',
-    steps: [
+    steps: makeSteps([
       'Сформируйте план-график РСР',
       'Проведите РСР согласно ТЗ',
       'Проведите интернет-соединение',
@@ -76,38 +80,46 @@ const initialStages: Stage[] = [
       'Подключите функцию Экспресс-доставки',
       'Отобразить чек-лист этапа «Под ключ»',
       'Проведение РСР',
-    ].map((text, i) => ({ id: `s5-${i}`, text })),
+    ], 's5'),
   },
   {
     id: 's6',
     title: 'Найм и обучение персонала',
-    steps: [
+    steps: makeSteps([
       'Найм персонала',
       'Обучите персонал',
       'Получение доступа во внутренние системы ТС5',
-    ].map((text, i) => ({ id: `s6-${i}`, text })),
+    ], 's6'),
   },
   {
     id: 's7',
     title: 'Открытие и запуск товародвижения',
-    steps: [
+    steps: makeSteps([
       'Проведение РСР',
       'Запустите товародвижение',
       'Организация праздничного открытия',
       'Ознакомление и подписание оставшихся документов',
-    ].map((text, i) => ({ id: `s7-${i}`, text })),
+    ], 's7'),
   },
 ];
+
+interface ModalState {
+  stageId: string;
+  stepId: string;
+}
 
 export default function Index() {
   const [stages, setStages] = useState<Stage[]>(initialStages);
   const [openStage, setOpenStage] = useState<string | null>('s1');
   const [editing, setEditing] = useState<{ stageId: string; stepId: string } | null>(null);
   const [draft, setDraft] = useState('');
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
 
   const totalSteps = stages.reduce((sum, s) => sum + s.steps.length, 0);
 
-  const startEdit = (stageId: string, step: Step) => {
+  const startEdit = (stageId: string, step: Step, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditing({ stageId, stepId: step.id });
     setDraft(step.text);
   };
@@ -117,17 +129,36 @@ export default function Index() {
     setStages((prev) =>
       prev.map((stage) =>
         stage.id === editing.stageId
-          ? {
-              ...stage,
-              steps: stage.steps.map((step) =>
-                step.id === editing.stepId ? { ...step, text: draft.trim() || step.text } : step
-              ),
-            }
+          ? { ...stage, steps: stage.steps.map((step) => step.id === editing.stepId ? { ...step, text: draft.trim() || step.text } : step) }
           : stage
       )
     );
     setEditing(null);
   };
+
+  const openModal = (stageId: string, step: Step) => {
+    setModal({ stageId, stepId: step.id });
+    setNoteDraft(step.note);
+  };
+
+  const saveNote = () => {
+    if (!modal) return;
+    setStages((prev) =>
+      prev.map((stage) =>
+        stage.id === modal.stageId
+          ? { ...stage, steps: stage.steps.map((step) => step.id === modal.stepId ? { ...step, note: noteDraft } : step) }
+          : stage
+      )
+    );
+    setModal(null);
+  };
+
+  const modalStep = modal
+    ? stages.find(s => s.id === modal.stageId)?.steps.find(s => s.id === modal.stepId)
+    : null;
+  const modalStage = modal
+    ? stages.find(s => s.id === modal.stageId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -153,7 +184,7 @@ export default function Index() {
         <div className="mb-8 animate-fade-in">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Этапы сотрудничества</h1>
           <p className="text-muted-foreground">
-            Раскройте этап, чтобы посмотреть шаги. Нажмите на шаг, чтобы отредактировать текст.
+            Раскройте этап — нажмите на шаг, чтобы открыть его содержимое.
           </p>
         </div>
 
@@ -196,7 +227,7 @@ export default function Index() {
                           <li
                             key={step.id}
                             className={`group flex items-center gap-3 px-5 py-3 ${!isEditing ? 'cursor-pointer hover:bg-brand-light/50 transition-colors' : ''}`}
-                            onClick={() => !isEditing && startEdit(stage.id, step)}
+                            onClick={() => !isEditing && openModal(stage.id, step)}
                           >
                             <span className="h-6 w-6 shrink-0 rounded-full border border-border bg-white text-xs flex items-center justify-center text-muted-foreground tabular-nums">
                               {si + 1}
@@ -230,7 +261,17 @@ export default function Index() {
                             ) : (
                               <>
                                 <span className="flex-1 text-sm">{step.text}</span>
-                                <Icon name="Pencil" size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                {step.note && (
+                                  <Icon name="FileText" size={13} className="text-brand shrink-0" />
+                                )}
+                                <button
+                                  onClick={(e) => startEdit(stage.id, step, e)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2.5 rounded-md text-muted-foreground hover:bg-secondary text-xs font-medium flex items-center gap-1"
+                                >
+                                  <Icon name="Pencil" size={12} />
+                                  Переименовать
+                                </button>
+                                <Icon name="ChevronRight" size={15} className="text-muted-foreground shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
                               </>
                             )}
                           </li>
@@ -244,6 +285,52 @@ export default function Index() {
           })}
         </div>
       </main>
+
+      {/* Modal */}
+      {modal && modalStep && modalStage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 pt-6 pb-4 border-b border-border">
+              <div className="text-xs text-muted-foreground mb-1">{modalStage.title}</div>
+              <h2 className="text-lg font-semibold leading-snug">{modalStep.text}</h2>
+            </div>
+            <div className="px-6 py-5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">
+                Описание / инструкция
+              </label>
+              <textarea
+                autoFocus
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Введите описание, инструкцию или заметку к этому шагу..."
+                rows={6}
+                className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none transition-all"
+              />
+            </div>
+            <div className="px-6 pb-6 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setModal(null)}
+                className="h-9 px-4 rounded-lg text-sm text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={saveNote}
+                className="h-9 px-5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors flex items-center gap-1.5"
+              >
+                <Icon name="Check" size={15} />
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
