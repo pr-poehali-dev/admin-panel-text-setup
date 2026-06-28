@@ -19,6 +19,7 @@ const makeSteps = (texts: string[], prefix: string): Step[] =>
 
 const stepLabels: Record<string, string> = {
   's1-0': 'Звонок менеджера',
+  's1-1': 'Ознакомление с шаблонами документов',
 };
 
 const initialStages: Stage[] = [
